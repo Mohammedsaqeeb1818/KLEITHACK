@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuralReview — Multi-Agent Code Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg: #050914;
+    --panel: rgba(8,14,30,0.92);
+    --border: rgba(99,179,237,0.12);
+    --border-glow: rgba(99,179,237,0.35);
+    --accent: #38bdf8;
+    --accent2: #818cf8;
+    --accent3: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --green: #34d399;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --card: rgba(15,23,42,0.85);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    position: relative;
+  }
+
+  /* ── ANIMATED BG ── */
+  .bg-grid {
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .bg-orb {
+    position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0;
+  }
+  .orb1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(56,189,248,0.08), transparent 70%); top: -200px; left: -100px; animation: drift1 20s ease-in-out infinite alternate; }
+  .orb2 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(129,140,248,0.07), transparent 70%); bottom: -150px; right: -100px; animation: drift2 18s ease-in-out infinite alternate; }
+  .orb3 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(52,211,153,0.06), transparent 70%); top: 40%; left: 40%; animation: drift3 15s ease-in-out infinite alternate; }
+
+  @keyframes drift1 { from{transform:translate(0,0)} to{transform:translate(60px,40px)} }
+  @keyframes drift2 { from{transform:translate(0,0)} to{transform:translate(-40px,-60px)} }
+  @keyframes drift3 { from{transform:translate(0,0)} to{transform:translate(30px,-30px)} }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 72px;
+    height: 100vh;
+    background: rgba(5,9,20,0.95);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 100;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .sidebar::after {
+    content: '';
+    position: absolute; right: -1px; top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, transparent, var(--accent), var(--accent2), transparent);
+    opacity: 0.4;
+  }
+
+  /* ── AI ORBS LOGO (Cortana-style) ── */
+  .ai-logo {
+    width: 72px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  .cortana-ring {
+    position: absolute;
+    border-radius: 50%;
+    border-style: solid;
+    animation: cortana-spin linear infinite;
+  }
+  .cr1 { width: 44px; height: 44px; border-width: 2px; border-color: rgba(56,189,248,0.8) transparent transparent transparent; animation-duration: 2.8s; }
+  .cr2 { width: 36px; height: 36px; border-width: 1.5px; border-color: transparent rgba(129,140,248,0.7) transparent rgba(129,140,248,0.3); animation-duration: 2.1s; animation-direction: reverse; }
+  .cr3 { width: 28px; height: 28px; border-width: 1.5px; border-color: transparent transparent rgba(52,211,153,0.8) transparent; animation-duration: 1.7s; }
+
+  @keyframes cortana-spin { to { transform: rotate(360deg); } }
+
+  .ai-core-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: radial-gradient(circle, #fff 0%, var(--accent) 60%, transparent 100%);
+    box-shadow: 0 0 12px var(--accent), 0 0 24px rgba(56,189,248,0.4);
+    animation: pulse-core 2.5s ease-in-out infinite;
+    position: relative; z-index: 5;
+  }
+
+  @keyframes pulse-core {
+    0%,100% { transform: scale(1); box-shadow: 0 0 12px var(--accent), 0 0 24px rgba(56,189,248,0.4); }
+    50% { transform: scale(1.3); box-shadow: 0 0 20px var(--accent), 0 0 40px rgba(56,189,248,0.6); }
+  }
+
+  /* ── NAV ITEMS ── */
+  .nav-item {
+    width: 72px; height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); cursor: pointer; position: relative;
+    transition: all 0.25s ease;
+  }
+  .nav-item:hover { color: var(--accent); }
+  .nav-item.active {
+    color: var(--accent);
+    background: linear-gradient(90deg, rgba(56,189,248,0.12), transparent);
+  }
+  .nav-item.active::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: linear-gradient(180deg, var(--accent2), var(--accent), var(--accent3));
+    box-shadow: 0 0 12px var(--accent);
+    border-radius: 0 2px 2px 0;
+  }
+  .nav-item i { font-size: 18px; transition: all 0.25s; }
+  .nav-item:hover i { transform: scale(1.2); filter: drop-shadow(0 0 6px var(--accent)); }
+  .nav-tooltip {
+    position: absolute; left: calc(100% + 14px);
+    background: rgba(8,14,30,0.98);
+    border: 1px solid var(--border-glow);
+    color: #fff; font-size: 13px; font-family: 'Syne', sans-serif;
+    padding: 8px 14px; border-radius: 8px; white-space: nowrap;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    transform: translateX(-6px);
+    box-shadow: 0 0 20px rgba(56,189,248,0.15);
+    z-index: 200;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .nav-item:hover .nav-tooltip { opacity: 1; transform: translateX(0); }
+
+  .nav-divider {
+    width: 32px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 6px 0;
+  }
+
+  /* ── MAIN AREA ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    height: 56px; flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    background: rgba(5,9,20,0.85);
+    backdrop-filter: blur(12px);
+    display: flex; align-items: center; padding: 0 24px;
+    gap: 16px; position: relative;
+  }
+  .topbar::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), var(--accent3), transparent);
+    opacity: 0.3;
+  }
+  .brand-name {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .brand-tag {
+    font-family: 'Space Mono', monospace; font-size: 9px;
+    color: var(--accent3); border: 1px solid rgba(52,211,153,0.3);
+    padding: 2px 6px; border-radius: 3px; letter-spacing: 2px;
+    animation: tag-blink 3s ease-in-out infinite;
+  }
+  @keyframes tag-blink { 0%,100%{opacity:1} 50%{opacity:0.6} }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 8px var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot { 0%,100%{opacity:1;box-shadow:0 0 8px var(--green)} 50%{opacity:0.6;box-shadow:0 0 4px var(--green)} }
+  .status-text { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  /* ── CONTENT AREA ── */
+  .content { flex: 1; display: flex; overflow: hidden; }
+
+  /* ── VIEW ── */
+  .view { display: none; flex: 1; overflow: hidden; }
+  .view.active { display: flex; }
+
+  /* ── INPUT VIEW ── */
+  .input-view {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+  }
+
+  .hero-card {
+    width: 100%; max-width: 720px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+  }
+  .hero-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+  }
+  .hero-card::after {
+    content: '';
+    position: absolute; inset: 0; border-radius: 20px;
+    background: radial-gradient(ellipse at 50% -20%, rgba(56,189,248,0.05), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-title {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 36px;
+    line-height: 1.1; letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .hero-sub {
+    font-family: 'Space Mono', monospace; font-size: 12px; color: var(--muted);
+    letter-spacing: 1px; margin-bottom: 40px;
+  }
+
+  .input-label {
+    font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted);
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .input-label::before { content:''; display:inline-block; width:12px; height:1px; background:var(--accent); }
+
+  .url-input-wrap {
+    display: flex; gap: 8px; margin-bottom: 16px;
+  }
+  .url-input {
+    flex: 1;
+    background: rgba(56,189,248,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    outline: none; transition: all 0.25s;
+  }
+  .url-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.1), 0 0 20px rgba(56,189,248,0.05);
+    background: rgba(56,189,248,0.06);
+  }
+  .url-input::placeholder { color: var(--muted); }
+
+  .or-divider {
+    display: flex; align-items: center; gap: 16px;
+    margin: 20px 0; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted);
+  }
+  .or-divider::before, .or-divider::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+
+  .upload-zone {
+    border: 1px dashed rgba(56,189,248,0.25); border-radius: 10px;
+    padding: 28px; text-align: center;
+    cursor: pointer; transition: all 0.25s;
+    background: rgba(56,189,248,0.02);
+  }
+  .upload-zone:hover {
+    border-color: rgba(56,189,248,0.5);
+    background: rgba(56,189,248,0.05);
+  }
+  .upload-zone i { font-size: 28px; color: var(--accent); margin-bottom: 8px; opacity: 0.7; }
+  .upload-zone p { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  /* ── ANALYZE BUTTON ── */
+  .btn-analyze {
+    width: 100%; margin-top: 28px;
+    padding: 16px; border-radius: 10px;
+    border: 1px solid rgba(56,189,248,0.4);
+    background: linear-gradient(135deg, rgba(56,189,248,0.12), rgba(129,140,248,0.12));
+    color: var(--accent); cursor: pointer;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px;
+    letter-spacing: 1px; text-transform: uppercase;
+    transition: all 0.3s; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn-analyze::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(129,140,248,0.15));
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .btn-analyze:hover::before { opacity: 1; }
+  .btn-analyze:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(56,189,248,0.2), 0 0 60px rgba(56,189,248,0.05);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+  .btn-analyze:hover i { animation: spin-once 0.5s ease; }
+  @keyframes spin-once { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
+  /* ── DASHBOARD VIEW ── */
+  .dashboard-view {
+    flex: 1; display: flex; overflow: hidden;
+  }
+
+  /* ── WORKFLOW VIEW ── */
+  .workflow-panel { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    padding: 24px; 
+    overflow: hidden; 
+  }
+  .workflow-header { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-bottom: 16px; 
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .workflow-log { 
+    flex: 1; 
+    background: rgba(0,0,0,0.4); 
+    border: 1px solid var(--border); 
+    border-radius: 12px; 
+    padding: 16px; 
+    overflow-y: auto; 
+  }
+
+  /* ── REPO DETAILS VIEW ── */
+  .repo-panel { flex: 1; display: flex; flex-direction: column; padding: 24px; overflow-y: auto; }
+  .repo-header { margin-bottom: 20px; }
+  .repo-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 24px; color: var(--text); margin-bottom: 4px; }
+  .repo-subtitle { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .repo-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .repo-stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; position: relative; overflow: hidden; transition: all 0.3s;
+  }
+  .repo-stat-card:hover { border-color: var(--border-glow); transform: translateY(-2px); }
+  .repo-stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .repo-stat-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 10px; }
+  .repo-stat-num { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; background: linear-gradient(135deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; }
+  .repo-stat-label { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 6px; letter-spacing: 1px; }
+  .repo-section-title {
+    font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted);
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .repo-section-title::before { content:''; display:inline-block; width:12px; height:1px; background:var(--accent); }
+  .lang-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+  .lang-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px; transition: all 0.3s;
+  }
+  .lang-card:hover { border-color: var(--border-glow); }
+  .lang-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .lang-info { flex: 1; }
+  .lang-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; color: var(--text); margin-bottom: 2px; }
+  .lang-meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+  .lang-bar-wrap { width: 100px; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+  .lang-bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+  .tech-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tech-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; text-align: center; transition: all 0.3s;
+  }
+  .tech-item:hover { border-color: var(--border-glow); transform: translateY(-2px); }
+  .tech-file-name { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text); margin-bottom: 4px; }
+  .tech-file-count { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; color: var(--accent); }
+  .tech-file-label { font-family: 'Space Mono', monospace; font-size: 8px; color: var(--muted); letter-spacing: 1px; }
+
+  /* LEFT: AGENT PANEL */
+  .agent-panel {
+    width: 300px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    background: rgba(5,9,20,0.8);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .panel-title {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
+  }
+  .live-badge {
+    margin-left: auto;
+    font-family: 'Space Mono', monospace; font-size: 9px;
+    color: var(--green); border: 1px solid rgba(52,211,153,0.3);
+    padding: 2px 7px; border-radius: 3px; letter-spacing: 1px;
+    background: rgba(52,211,153,0.08);
+    animation: tag-blink 2s ease-in-out infinite;
+  }
+
+  /* AGENT CARDS */
+  .agent-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  .agent-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    position: relative; overflow: hidden;
+    transition: all 0.3s;
+  }
+  .agent-card.active {
+    border-color: rgba(56,189,248,0.35);
+    box-shadow: 0 0 20px rgba(56,189,248,0.08);
+  }
+  .agent-card.done { border-color: rgba(52,211,153,0.3); }
+  .agent-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .agent-card.active::before {
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 1;
+  }
+  .agent-card.done::before {
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    opacity: 1;
+  }
+
+  .agent-name {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .agent-icon { width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .agent-status {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .agent-status.running { color: var(--accent); }
+  .agent-status.done { color: var(--green); }
+
+  .progress-bar {
+    height: 2px; background: rgba(255,255,255,0.05); border-radius: 1px;
+    margin-top: 10px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 1px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.6s ease;
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .stream-log {
+    flex: 0 0 160px;
+    border-top: 1px solid var(--border);
+    padding: 12px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.3);
+  }
+  .log-line {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--muted); padding: 2px 0; line-height: 1.6;
+    animation: fadeUp 0.3s ease;
+  }
+  .log-line.info { color: var(--accent); }
+  .log-line.warn { color: var(--yellow); }
+  .log-line.err  { color: var(--red); }
+  .log-line.ok   { color: var(--green); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+  /* CENTER: MAIN RESULTS */
+  .results-main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* TABS */
+  .tabs {
+    display: flex; border-bottom: 1px solid var(--border);
+    background: rgba(5,9,20,0.7); flex-shrink: 0;
+    padding: 0 20px;
+  }
+  .tab {
+    padding: 14px 20px; cursor: pointer;
+    font-family: 'Space Mono', monospace; font-size: 11px;
+    color: var(--muted); position: relative; transition: color 0.2s;
+    letter-spacing: 1px;
+  }
+  .tab.active { color: var(--accent); }
+  .tab.active::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .tab-content { flex: 1; overflow: hidden; }
+  .tab-panel { display: none; height: 100%; overflow-y: auto; padding: 20px; }
+  .tab-panel.active { display: block; }
+
+  /* OVERVIEW */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; position: relative; overflow: hidden; transition: all 0.3s;
+  }
+  .stat-card:hover { border-color: var(--border-glow); transform: translateY(-2px); }
+  .stat-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(56,189,248,0.04), transparent 70%);
+  }
+  .stat-num {
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 32px;
+    background: linear-gradient(135deg, #fff, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+  .stat-label { font-family: 'Space Mono', monospace; font-size: 9px; color: var(--muted); margin-top: 4px; letter-spacing: 1px; }
+
+  .stat-card.red .stat-num { background: linear-gradient(135deg, #fff, var(--red)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-card.yellow .stat-num { background: linear-gradient(135deg, #fff, var(--yellow)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-card.green .stat-num { background: linear-gradient(135deg, #fff, var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .stat-bar {
+    height: 3px; border-radius: 2px; margin-top: 12px;
+    background: rgba(255,255,255,0.05); overflow: hidden;
+  }
+  .stat-bar-fill { height: 100%; border-radius: 2px; transition: width 1.5s ease; }
+  .stat-card.red .stat-bar-fill { background: linear-gradient(90deg, var(--red), rgba(248,113,113,0.4)); box-shadow: 0 0 8px var(--red); }
+  .stat-card.yellow .stat-bar-fill { background: linear-gradient(90deg, var(--yellow), rgba(251,191,36,0.4)); box-shadow: 0 0 8px var(--yellow); }
+  .stat-card.green .stat-bar-fill { background: linear-gradient(90deg, var(--green), rgba(52,211,153,0.4)); box-shadow: 0 0 8px var(--green); }
+  .stat-card .stat-bar-fill.blue { background: linear-gradient(90deg, var(--accent), rgba(56,189,248,0.4)); box-shadow: 0 0 8px var(--accent); }
+
+  /* ISSUES */
+  .issue-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin-bottom: 10px; transition: all 0.3s;
+    position: relative; overflow: hidden; cursor: pointer;
+    animation: fadeUp 0.4s ease both;
+  }
+  .issue-card:hover { border-color: var(--border-glow); transform: translateX(4px); }
+  .issue-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px;
+  }
+  .issue-card.high::before { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .issue-card.medium::before { background: var(--yellow); box-shadow: 0 0 10px var(--yellow); }
+  .issue-card.low::before { background: var(--green); box-shadow: 0 0 10px var(--green); }
+
+  .issue-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .issue-badge {
+    font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 1px;
+    padding: 3px 8px; border-radius: 4px; font-weight: 700;
+  }
+  .badge-high { background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.35); color: var(--red); }
+  .badge-medium { background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.35); color: var(--yellow); }
+  .badge-low { background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.35); color: var(--green); }
+  .badge-type { background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); color: var(--muted); font-size: 9px; }
+  .issue-title { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; flex: 1; }
+  .issue-file { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+  .issue-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* CODE VIEWER */
+  .code-file-tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .code-file-tab {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 5px 12px; border-radius: 6px; cursor: pointer;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    color: var(--muted); transition: all 0.2s;
+  }
+  .code-file-tab.active {
+    background: rgba(56,189,248,0.1); border-color: rgba(56,189,248,0.3);
+    color: var(--accent);
+  }
+  .code-block {
+    background: rgba(0,0,0,0.4); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+  .code-header {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.02);
+  }
+  .code-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .code-filename { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-left: 4px; }
+  .code-body { padding: 0; overflow-x: auto; }
+  .code-line {
+    display: flex; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    line-height: 1.8; transition: background 0.2s;
+  }
+  .code-line:hover { background: rgba(255,255,255,0.03); }
+  .code-line.highlighted { background: rgba(248,113,113,0.08); border-left: 2px solid var(--red); }
+  .code-line.highlighted-warn { background: rgba(251,191,36,0.06); border-left: 2px solid var(--yellow); }
+  .line-num { width: 48px; padding: 0 12px; color: rgba(100,116,139,0.4); text-align: right; flex-shrink: 0; user-select: none; font-size: 11px; }
+  .line-code { padding: 0 16px; color: var(--text); white-space: pre; }
+  .inline-comment {
+    font-family: 'Space Mono', monospace; font-size: 10px;
+    background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25);
+    border-radius: 6px; padding: 6px 12px; margin: 4px 16px 4px 60px;
+    color: var(--red); display: flex; align-items: center; gap: 6px;
+  }
+  .inline-comment.warn { background: rgba(251,191,36,0.08); border-color: rgba(251,191,36,0.25); color: var(--yellow); }
+
+  /* PATCHES */
+  .patch-card {
+    background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; margin-bottom: 12px; animation: fadeUp 0.4s ease both;
+  }
+  .patch-header {
+    padding: 12px 16px; background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .diff-line {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    padding: 2px 16px; line-height: 1.8;
+  }
+  .diff-add { background: rgba(52,211,153,0.06); color: var(--green); }
+  .diff-rem { background: rgba(248,113,113,0.06); color: var(--red); text-decoration: line-through; opacity: 0.7; }
+  .diff-ctx { color: rgba(100,116,139,0.6); }
+
+  /* ── SCROLLBARS ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.15); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(56,189,248,0.3); }
+
+  /* ── TYPING DOTS ── */
+  .dots span {
+    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); margin: 0 2px;
+    animation: dot-bounce 1.4s ease-in-out infinite;
+  }
+  .dots span:nth-child(1) { animation-delay: -0.32s; }
+  .dots span:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes dot-bounce { 0%,80%,100%{transform:scale(0);opacity:0.3} 40%{transform:scale(1);opacity:1} }
+
+  /* ── SCANNING ANIMATION ── */
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 20px var(--accent);
+    animation: scan 3s ease-in-out infinite;
+    opacity: 0.6;
+  }
+  @keyframes scan {
+    0%{top:0%;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%;opacity:0}
+  }
+
+  /* ── CODE SYNTAX COLORS ── */
+  .kw { color: #c792ea; }
+  .str { color: #c3e88d; }
+  .fn  { color: #82aaff; }
+  .cm  { color: #546e7a; font-style: italic; }
+  .nm  { color: #f78c6c; }
+  .op  { color: #89ddff; }
+
+  /* hide upload input */
+  #file-upload { display: none; }
+
+  /* ── SCANNING STATE ── */
+  .scanning-overlay {
+    display: none;
+    position: absolute; inset: 0; z-index: 50;
+    background: rgba(5,9,20,0.9);
+    align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .scanning-overlay.show { display: flex; }
+  .scan-brain {
+    width: 80px; height: 80px; position: relative; display: flex; align-items: center; justify-content: center;
+  }
+  .scan-r1 { position:absolute; width:80px; height:80px; border-radius:50%; border:2px solid rgba(56,189,248,0.5); border-top-color:var(--accent); animation:cortana-spin 1.8s linear infinite; }
+  .scan-r2 { position:absolute; width:60px; height:60px; border-radius:50%; border:2px solid rgba(129,140,248,0.4); border-bottom-color:var(--accent2); animation:cortana-spin 1.3s linear infinite reverse; }
+  .scan-r3 { position:absolute; width:40px; height:40px; border-radius:50%; border:2px solid rgba(52,211,153,0.4); border-right-color:var(--green); animation:cortana-spin 1s linear infinite; }
+  .scan-core { width:16px; height:16px; border-radius:50%; background: radial-gradient(circle, #fff, var(--accent)); box-shadow:0 0 20px var(--accent); animation:pulse-core 1.5s ease-in-out infinite; }
+  .scan-text { font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); letter-spacing:2px; }
+  .scan-progress { width:200px; height:2px; background:rgba(255,255,255,0.05); border-radius:1px; overflow:hidden; }
+  .scan-progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:1px; width:0%; transition:width 0.3s ease; }
+
+  /* ── SETTINGS POPOVER ── */
+  .settings-popover {
+    position: absolute;
+    left: 80px;
+    bottom: 20px;
+    width: 220px;
+    background: rgba(5,9,20,0.98);
+    border: 1px solid rgba(56,189,248,0.2);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(56,189,248,0.1);
+    backdrop-filter: blur(12px);
+    padding: 16px;
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: bottom left;
+  }
+  .settings-popover.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+  .settings-header {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 12px;
+  }
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── ROLLING TOGGLE SWITCH ── */
+  .theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    margin: 0;
+  }
+  .theme-switch input { opacity: 0; width: 0; height: 0; margin: 0; }
+  .theme-switch .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    transition: 0.4s;
+    border-radius: 24px;
+  }
+  .theme-switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text);
+    transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  .theme-switch input:checked + .slider {
+    background-color: var(--accent);
+    border-color: var(--accent);
+  }
+  .theme-switch input:focus + .slider {
+    box-shadow: 0 0 10px rgba(56,189,248,0.3);
+  }
+  .theme-switch input:checked + .slider:before {
+    transform: translateX(20px);
+    background-color: #fff;
+  }
+
+  /* ── LIGHT MODE ── */
+  body.light-mode {
+    --bg: #e2e8f0;
+    --panel: rgba(255,255,255,0.75);
+    --border: rgba(14,165,233,0.18);
+    --border-glow: rgba(14,165,233,0.35);
+    --accent: #0ea5e9;
+    --accent2: #4f46e5;
+    --accent3: #059669;
+    --text: #475569;
+    --muted: #64748b;
+    --card: rgba(255,255,255,0.6);
+  }
+  body.light-mode .sidebar { background: rgba(255,255,255,0.95); }
+  body.light-mode .topbar { background: rgba(255,255,255,0.85); }
+  body.light-mode .agent-panel { background: rgba(255,255,255,0.8); }
+  body.light-mode .nav-tooltip { background: rgba(255,255,255,0.98); border: 1px solid var(--border); color: #0f172a; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+  body.light-mode .code-block { background: rgba(241,245,249,0.5); }
+  body.light-mode .stream-log { background: rgba(241,245,249,0.5); }
+  body.light-mode .patch-card { background: rgba(255,255,255,0.8); }
+  body.light-mode .scanning-overlay { background: rgba(255,255,255,0.9); }
+  body.light-mode .settings-popover { background: rgba(255,255,255,0.95); box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 1px solid rgba(14,165,233,0.3); }
+  body.light-mode .settings-header { border-bottom: 1px solid rgba(0,0,0,0.05); }
+  body.light-mode .hero-title { color: #475569; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: #475569; }
+  body.light-mode .stat-num { color: #475569; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: #475569; }
+  body.light-mode .stat-card.red .stat-num { color: var(--red); background: none; -webkit-background-clip: unset; -webkit-text-fill-color: var(--red); }
+  body.light-mode .stat-card.yellow .stat-num { color: var(--yellow); background: none; -webkit-background-clip: unset; -webkit-text-fill-color: var(--yellow); }
+  body.light-mode .stat-card.green .stat-num { color: var(--green); background: none; -webkit-background-clip: unset; -webkit-text-fill-color: var(--green); }
+  body.light-mode .repo-stat-num { color: #475569; background: none; -webkit-background-clip: unset; -webkit-text-fill-color: #475569; }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+<div class="bg-orb orb3"></div>
+
+<!-- ═══════ SIDEBAR ═══════ -->
+<aside class="sidebar">
+  <!-- AI LOGO - Live AI Back Button -->
+  <div class="ai-logo" onclick="goToLanding()" title="Live AI Home (NeuralReview)">
+    <div class="cortana-ring cr1"></div>
+    <div class="cortana-ring cr2"></div>
+    <div class="cortana-ring cr3"></div>
+    <div class="ai-core-dot"></div>
+  </div>
+
+  <nav style="flex:1;width:100%;overflow:visible;">
+    <div class="nav-item active" id="nav-input" onclick="switchViewUI('input',this)">
+      <i class="fa-solid fa-code"></i>
+      <span class="nav-tooltip">Analyze Code</span>
+    </div>
+    <div class="nav-item" id="nav-dashboard" onclick="switchViewUI('dashboard',this)">
+      <i class="fa-solid fa-chart-bar"></i>
+      <span class="nav-tooltip">Dashboard</span>
+    </div>
+    <div class="nav-item" id="nav-workflow" onclick="switchViewUI('workflow',this)">
+      <i class="fa-solid fa-terminal"></i>
+      <span class="nav-tooltip">Workflow</span>
+    </div>
+    <div class="nav-item" id="nav-repo" onclick="switchViewUI('repo',this)">
+      <i class="fa-solid fa-folder-open"></i>
+      <span class="nav-tooltip">Repo Details</span>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" style="cursor:default;opacity:0.4">
+      <i class="fa-solid fa-book-open"></i>
+      <span class="nav-tooltip">History</span>
+    </div>
+  </nav>
+
+  <!-- Settings Popover -->
+  <div class="settings-popover" id="settings-popover" onclick="event.stopPropagation()">
+    <div class="settings-header">Quick Settings</div>
+    <div class="setting-row">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--text)">
+        <i class="fa-solid fa-moon" id="popover-theme-icon"></i>
+        <span>Dark Mode</span>
+      </div>
+      <label class="theme-switch">
+        <input type="checkbox" id="theme-toggle-cb" onchange="toggleThemeCheckbox(this)">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div style="padding-bottom:16px;display:flex;flex-direction:column;align-items:center;gap:6px">
+    <div id="nav-settings" onclick="toggleSettingsPopover(event)" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Settings">
+      <i class="fa-solid fa-sliders"></i>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════ MAIN ═══════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <span class="brand-name">NeuralReview</span>
+    <span class="brand-tag">MULTI-AGENT</span>
+    <div style="flex:1"></div>
+    <div class="status-dot"></div>
+    <span class="status-text" id="status-text">All systems operational</span>
+    <div style="width:1px;height:20px;background:var(--border);margin:0 8px;"></div>
+    <span style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)" id="clock"></span>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content" style="position:relative;">
+
+    <!-- SCANNING OVERLAY -->
+    <div class="scanning-overlay" id="scanning-overlay">
+      <div class="scan-brain">
+        <div class="scan-r1"></div>
+        <div class="scan-r2"></div>
+        <div class="scan-r3"></div>
+        <div class="scan-core"></div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--text);margin-bottom:6px">Initializing Agents</div>
+        <div class="scan-text" id="scan-status-text">Preparing neural analyzers...</div>
+      </div>
+      <div class="scan-progress"><div class="scan-progress-fill" id="scan-progress-fill"></div></div>
+    </div>
+
+    <!-- ─── INPUT VIEW ─── -->
+    <div class="view active" id="view-input" style="display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto;">
+      <div class="hero-card">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+          <div style="width:56px;height:56px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <div class="cortana-ring cr1" style="width:48px;height:48px;"></div>
+            <div class="cortana-ring cr2" style="width:38px;height:38px;"></div>
+            <div class="cortana-ring cr3" style="width:28px;height:28px;"></div>
+            <div class="ai-core-dot"></div>
+          </div>
+          <div>
+            <div class="hero-title">Analyze Your Code</div>
+            <div class="hero-sub">// 6 SPECIALIZED AGENTS · REAL-TIME REASONING · INLINE PATCHES</div>
+          </div>
+        </div>
+
+        <div class="input-label">GitHub Repository URL</div>
+        <div class="url-input-wrap">
+          <input class="url-input" id="repo-url" type="text" placeholder="https://github.com/username/repository" />
+        </div>
+
+        <div class="or-divider">OR UPLOAD</div>
+
+        <div class="upload-zone" onclick="document.getElementById('file-upload').click()">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <p style="margin-bottom:4px;color:var(--text);font-size:12px;">Drop ZIP or click to upload</p>
+          <p>.zip, .tar.gz supported · Max 50MB</p>
+        </div>
+        <input type="file" id="file-upload" accept=".zip,.tar.gz">
+
+        <div style="display:flex;gap:10px;margin-top:20px;">
+          <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <i class="fa-solid fa-shield-halved" style="color:var(--accent);font-size:14px;"></i>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text);">Security Scan</div>
+              <div style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace">OWASP · CVE · SAST</div>
+            </div>
+            <input type="checkbox" checked style="margin-left:auto;accent-color:var(--accent)">
+          </div>
+          <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <i class="fa-solid fa-sitemap" style="color:var(--accent2);font-size:14px;"></i>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text);">Architecture</div>
+              <div style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace">Patterns · SOLID</div>
+            </div>
+            <input type="checkbox" checked style="margin-left:auto;accent-color:var(--accent)">
+          </div>
+          <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+            <i class="fa-solid fa-gauge-high" style="color:var(--green);font-size:14px;"></i>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text);">Performance</div>
+              <div style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace">O(n) · Memory</div>
+            </div>
+            <input type="checkbox" checked style="margin-left:auto;accent-color:var(--accent)">
+          </div>
+        </div>
+
+        <button class="btn-analyze" onclick="startAnalysis()">
+          <i class="fa-solid fa-brain"></i>
+          LAUNCH NEURAL REVIEW
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── DASHBOARD VIEW ─── -->
+    <div class="view" id="view-dashboard">
+      <div class="dashboard-view" style="flex:1;overflow:hidden;">
+
+        <!-- LEFT: AGENT PANEL -->
+        <div class="agent-panel">
+          <div class="panel-header">
+            <i class="fa-solid fa-microchip" style="color:var(--accent);font-size:12px;"></i>
+            <span class="panel-title">Agent Monitor</span>
+            <span class="live-badge">LIVE</span>
+          </div>
+
+          <div class="agent-list" id="agent-list">
+            <!-- agents injected by JS -->
+          </div>
+
+        </div>
+
+        <!-- RESULTS MAIN -->
+        <div class="results-main">
+          <div class="tabs">
+            <div class="tab active" onclick="switchTab('overview',this)">OVERVIEW</div>
+            <div class="tab" onclick="switchTab('issues',this)">ISSUES <span id="issue-count-badge" style="background:rgba(248,113,113,0.15);border:1px solid rgba(248,113,113,0.3);color:var(--red);font-size:9px;padding:1px 6px;border-radius:4px;margin-left:4px;">0</span></div>
+            <div class="tab" onclick="switchTab('code',this)">CODE VIEWER</div>
+            <div class="tab" onclick="switchTab('patches',this)">PATCHES</div>
+          </div>
+
+          <div class="tab-content">
+
+            <!-- OVERVIEW TAB -->
+            <div class="tab-panel active" id="tab-overview">
+              <div class="stats-row">
+                <div class="stat-card">
+                  <div class="stat-num" id="stat-total">0</div>
+                  <div class="stat-label">TOTAL ISSUES</div>
+                  <div class="stat-bar"><div class="stat-bar-fill blue" id="bar-total" style="width:0%"></div></div>
+                </div>
+                <div class="stat-card red">
+                  <div class="stat-num" id="stat-high">0</div>
+                  <div class="stat-label">HIGH SEVERITY</div>
+                  <div class="stat-bar"><div class="stat-bar-fill" id="bar-high" style="width:0%"></div></div>
+                </div>
+                <div class="stat-card yellow">
+                  <div class="stat-num" id="stat-med">0</div>
+                  <div class="stat-label">MEDIUM</div>
+                  <div class="stat-bar"><div class="stat-bar-fill" id="bar-med" style="width:0%"></div></div>
+                </div>
+                <div class="stat-card green">
+                  <div class="stat-num" id="stat-low">0</div>
+                  <div class="stat-label">LOW / INFO</div>
+                  <div class="stat-bar"><div class="stat-bar-fill" id="bar-low" style="width:0%"></div></div>
+                </div>
+              </div>
+
+              <!-- AGENT STATUS GRID -->
+              <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                <span style="display:inline-block;width:12px;height:1px;background:var(--accent)"></span>
+                AGENT COMPLETION MATRIX
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;" id="agent-matrix">
+              </div>
+
+              <!-- SUMMARY CARD -->
+              <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden;">
+                <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(56,189,248,0.03),transparent 70%);pointer-events:none;"></div>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                  <span style="display:inline-block;width:12px;height:1px;background:var(--accent)"></span>
+                  AI EXECUTIVE SUMMARY
+                </div>
+                <div id="summary-text" style="font-size:13px;color:var(--muted);line-height:1.8;font-family:'JetBrains Mono',monospace;">
+                  <span style="color:var(--muted)">Awaiting analysis completion...</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ISSUES TAB -->
+            <div class="tab-panel" id="tab-issues">
+              <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                <button onclick="filterIssues('all')" class="code-file-tab active" id="filter-all">ALL</button>
+                <button onclick="filterIssues('high')" class="code-file-tab" id="filter-high">HIGH <span style="color:var(--red)" id="fc-high">0</span></button>
+                <button onclick="filterIssues('medium')" class="code-file-tab" id="filter-medium">MEDIUM <span style="color:var(--yellow)" id="fc-med">0</span></button>
+                <button onclick="filterIssues('low')" class="code-file-tab" id="filter-low">LOW <span style="color:var(--green)" id="fc-low">0</span></button>
+              </div>
+              <div id="issues-list"></div>
+            </div>
+
+            <!-- CODE VIEWER TAB -->
+            <div class="tab-panel" id="tab-code">
+              <div class="code-file-tabs" id="code-file-tabs"></div>
+              <div class="code-block" id="code-viewer">
+                <div style="padding:40px;text-align:center;color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;">
+                  Analysis in progress... Code will appear here
+                </div>
+              </div>
+            </div>
+
+            <!-- PATCHES TAB -->
+            <div class="tab-panel" id="tab-patches">
+              <div id="patches-list"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── WORKFLOW VIEW ─── -->
+    <div class="view" id="view-workflow">
+      <div class="workflow-panel">
+        <div class="workflow-header">
+          <i class="fa-solid fa-terminal" style="color:var(--accent);font-size:14px;"></i>
+          <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:18px;color:var(--text);">Agent Workflow Console</span>
+          <span class="live-badge" style="margin-left:auto;">LIVE</span>
+        </div>
+        <div class="workflow-log" id="workflow-log">
+          <div class="log-line" style="color:var(--muted);font-size:10px;padding-bottom:6px;">▸ AGENT WORKFLOW CONSOLE — Waiting for analysis...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── REPO DETAILS VIEW ─── -->
+    <div class="view" id="view-repo">
+      <div class="repo-panel">
+        <div class="repo-header">
+          <div class="repo-title" id="repo-name">Repository Analysis</div>
+          <div class="repo-subtitle" id="repo-path">github.com/username/repository</div>
+        </div>
+        
+        <div class="repo-stats-row">
+          <div class="repo-stat-card">
+            <div class="repo-stat-icon" style="background:rgba(56,189,248,0.12);color:var(--accent);"><i class="fa-solid fa-file-code"></i></div>
+            <div class="repo-stat-num" id="repo-total-files">0</div>
+            <div class="repo-stat-label">TOTAL FILES SCANNED</div>
+          </div>
+          <div class="repo-stat-card">
+            <div class="repo-stat-icon" style="background:rgba(129,140,248,0.12);color:var(--accent2);"><i class="fa-solid fa-code"></i></div>
+            <div class="repo-stat-num" id="repo-total-loc">0</div>
+            <div class="repo-stat-label">LINES OF CODE</div>
+          </div>
+          <div class="repo-stat-card">
+            <div class="repo-stat-icon" style="background:rgba(52,211,153,0.12);color:var(--accent3);"><i class="fa-solid fa-layer-group"></i></div>
+            <div class="repo-stat-num" id="repo-lang-count">0</div>
+            <div class="repo-stat-label">LANGUAGES DETECTED</div>
+          </div>
+        </div>
+        
+        <div class="repo-section-title">Programming Language Distribution</div>
+        <div class="lang-grid" id="lang-grid">
+          <!-- Injected by JS -->
+        </div>
+        
+        <div class="repo-section-title">Tech Stack Files</div>
+        <div class="tech-grid" id="tech-grid">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end main -->
+
+<script>
+// ── STATE ──
+const state = {
+  currentView: 'input',
+  currentTab: 'overview',
+  issues: [],
+  filter: 'all',
+};
+
+// ── INIT THEME FROM LOCALSTORAGE ──
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  const cb = document.getElementById('theme-toggle-cb');
+  const icon = document.getElementById('popover-theme-icon');
+  const label = icon.nextElementSibling;
+  
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+    cb.checked = true;
+    icon.className = 'fa-solid fa-sun';
+    label.textContent = 'Light Mode';
+  } else {
+    document.body.classList.remove('light-mode');
+    cb.checked = false;
+    icon.className = 'fa-solid fa-moon';
+    label.textContent = 'Dark Mode';
+  }
+}
+
+// ── THEME TOGGLE ──
+function toggleThemeCheckbox(cb) {
+  const isLight = cb.checked;
+  if (isLight) {
+    document.body.classList.add('light-mode');
+    document.getElementById('popover-theme-icon').className = 'fa-solid fa-sun';
+    document.getElementById('popover-theme-icon').nextElementSibling.textContent = 'Light Mode';
+  } else {
+    document.body.classList.remove('light-mode');
+    document.getElementById('popover-theme-icon').className = 'fa-solid fa-moon';
+    document.getElementById('popover-theme-icon').nextElementSibling.textContent = 'Dark Mode';
+  }
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+function toggleSettingsPopover(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('settings-popover').classList.toggle('show');
+}
+
+// Close popover when clicking outside
+document.addEventListener('click', function(e) {
+  const popover = document.getElementById('settings-popover');
+  const navSettings = document.getElementById('nav-settings');
+  if (popover && popover.classList.contains('show')) {
+    if (!popover.contains(e.target) && !navSettings.contains(e.target)) {
+      popover.classList.remove('show');
+    }
+  }
+});
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-US',{hour12:false});
+}
+setInterval(updateClock, 1000); updateClock();
+initTheme();
+
+// ── VIEW SWITCH ──
+function switchViewUI(view, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => { v.classList.remove('active'); v.style.display = 'none'; });
+  const target = document.getElementById('view-' + view);
+  target.style.display = 'flex'; target.classList.add('active');
+  state.currentView = view;
+  if (view === 'repo') renderRepoDetails();
+}
+function switchView(view) {
+  const el = document.getElementById('nav-' + view);
+  switchViewUI(view, el);
+}
+
+function goToLanding() {
+  window.location.href = 'landing.html';
+}
+
+// ── REPO DETAILS ──
+function renderRepoDetails() {
+  const url = document.getElementById('repo-url').value.trim() || 'github.com/username/repository';
+  document.getElementById('repo-name').textContent = 'Repository Analysis';
+  document.getElementById('repo-path').textContent = url;
+  
+  const repoData = {
+    totalFiles: 47,
+    totalLOC: 12847,
+    languages: [
+      { name: 'Python', files: 24, lines: 8542, color: '#38bdf8', icon: 'fa-python', pct: 66 },
+      { name: 'JavaScript', files: 8, lines: 2100, color: '#fbbf24', icon: 'fa-js', pct: 16 },
+      { name: 'HTML/CSS', files: 6, lines: 1205, color: '#f87171', icon: 'fa-html5', pct: 9 },
+      { name: 'Markdown', files: 5, lines: 800, color: '#34d399', icon: 'fa-file-lines', pct: 6 },
+      { name: 'YAML', files: 3, lines: 120, color: '#818cf8', icon: 'fa-file-code', pct: 1 },
+      { name: 'Dockerfile', files: 1, lines: 80, color: '#0ea5e9', icon: 'fa-docker', pct: 1 },
+    ],
+    techStack: [
+      { name: '.py', count: 24 },
+      { name: '.js', count: 8 },
+      { name: '.html', count: 4 },
+      { name: '.css', count: 2 },
+      { name: '.md', count: 5 },
+      { name: '.yml', count: 3 },
+      { name: 'Dockerfile', count: 1 },
+    ]
+  };
+  
+  document.getElementById('repo-total-files').textContent = repoData.totalFiles;
+  document.getElementById('repo-total-loc').textContent = repoData.totalLOC.toLocaleString();
+  document.getElementById('repo-lang-count').textContent = repoData.languages.length;
+  
+  const langGrid = document.getElementById('lang-grid');
+  langGrid.innerHTML = repoData.languages.map(l => `
+    <div class="lang-card">
+      <div class="lang-icon" style="background:${l.color}15;color:${l.color};"><i class="fa-brands ${l.icon}"></i></div>
+      <div class="lang-info">
+        <div class="lang-name">${l.name}</div>
+        <div class="lang-meta">${l.files} files · ${l.lines.toLocaleString()} lines</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);">${l.pct}%</div>
+        <div class="lang-bar-wrap"><div class="lang-bar-fill" style="width:${l.pct}%;background:${l.color};"></div></div>
+      </div>
+    </div>
+  `).join('');
+  
+  const techGrid = document.getElementById('tech-grid');
+  techGrid.innerHTML = repoData.techStack.map(t => `
+    <div class="tech-item">
+      <div class="tech-file-name">${t.name}</div>
+      <div class="tech-file-count">${t.count}</div>
+      <div class="tech-file-label">FILES</div>
+    </div>
+  `).join('');
+}
+
+// ── TAB SWITCH ──
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  state.currentTab = tab;
+}
+
+// ── AGENTS CONFIG ──
+const AGENTS = [
+  { id:'security',  name:'Security Agent',      icon:'fa-shield-halved', color:'#f87171', bg:'rgba(248,113,113,0.12)' },
+  { id:'arch',      name:'Architecture Agent',  icon:'fa-sitemap',       color:'#818cf8', bg:'rgba(129,140,248,0.12)' },
+  { id:'perf',      name:'Performance Agent',   icon:'fa-gauge-high',    color:'#34d399', bg:'rgba(52,211,153,0.12)' },
+  { id:'quality',   name:'Code Quality Agent',  icon:'fa-star-half-stroke',color:'#38bdf8',bg:'rgba(56,189,248,0.12)' },
+  { id:'deps',      name:'Dependency Agent',    icon:'fa-box',           color:'#fbbf24', bg:'rgba(251,191,36,0.12)' },
+  { id:'logic',     name:'Logic Agent',         icon:'fa-brain',         color:'#c084fc', bg:'rgba(192,132,252,0.12)' },
+];
+
+// ── MOCK DATA ──
+const MOCK_ISSUES = [
+  { id:1, severity:'high',   type:'SQL Injection',        file:'api/routes.py',       line:47,  agent:'security', desc:'Unsanitized user input passed directly into raw SQL query. Attacker can exfiltrate or drop tables.' },
+  { id:2, severity:'high',   type:'Exposed Secret',       file:'.env.example',        line:3,   agent:'security', desc:'AWS_SECRET_KEY committed in plaintext. Rotate immediately and use secret managers.' },
+  { id:3, severity:'high',   type:'Command Injection',    file:'utils/shell.py',      line:112, agent:'security', desc:'subprocess.call() receives unsanitized shell input. Arbitrary command execution possible.' },
+  { id:4, severity:'medium', type:'N+1 Query',            file:'models/user.py',      line:88,  agent:'perf',     desc:'Lazy ORM loading inside loop causes N+1 queries. Use select_related() or prefetch_related().' },
+  { id:5, severity:'medium', type:'God Class',            file:'core/manager.py',     line:1,   agent:'arch',     desc:'Class has 47 methods and 1200+ LOC. Violates Single Responsibility Principle.' },
+  { id:6, severity:'medium', type:'Circular Dependency',  file:'modules/auth.py',     line:8,   agent:'arch',     desc:'auth → utils → auth import cycle detected. Restructure with dependency injection.' },
+  { id:7, severity:'medium', type:'Outdated Package',     file:'requirements.txt',    line:12,  agent:'deps',     desc:'requests==2.18.0 has 3 known CVEs. Upgrade to ≥2.31.0.' },
+  { id:8, severity:'low',    type:'Missing Docstring',    file:'helpers/format.py',   line:22,  agent:'quality',  desc:'Public functions lack docstrings. Auto-generate with sphinx or pydoc.' },
+  { id:9, severity:'low',    type:'Unreachable Code',     file:'api/auth.py',         line:199, agent:'logic',    desc:'return statement at line 195 renders lines 196-202 unreachable.' },
+  { id:10,severity:'low',    type:'Magic Number',         file:'config/settings.py',  line:31,  agent:'quality',  desc:'Hardcoded value 86400 should be named constant SECONDS_PER_DAY.' },
+];
+
+const MOCK_CODE = [
+  { ln:45, code:`<span class="kw">def</span> <span class="fn">get_user</span>(user_id):`, hl:false },
+  { ln:46, code:`    query <span class="op">=</span> <span class="str">"SELECT * FROM users WHERE id = "</span> <span class="op">+</span> user_id`, hl:false },
+  { ln:47, code:`    <span class="fn">cursor</span>.execute(query)  <span class="cm"># ← SQL INJECTION RISK</span>`, hl:'high', comment:'CRITICAL: Direct string concatenation with user input. Use parameterized queries.' },
+  { ln:48, code:`    <span class="kw">return</span> cursor.fetchone()`, hl:false },
+  { ln:49, code:``, hl:false },
+  { ln:86, code:`<span class="kw">def</span> <span class="fn">load_users</span>(org_id):`, hl:false },
+  { ln:87, code:`    users <span class="op">=</span> User.objects.<span class="fn">filter</span>(org_id<span class="op">=</span>org_id)`, hl:false },
+  { ln:88, code:`    <span class="kw">for</span> u <span class="kw">in</span> users:  <span class="cm"># N+1 QUERY LOOP</span>`, hl:'warn', comment:'MEDIUM: Triggers one DB query per user. Add .prefetch_related("profile").' },
+  { ln:89, code:`        print(u.profile.bio)  <span class="cm"># lazy load</span>`, hl:'warn' },
+  { ln:90, code:``, hl:false },
+];
+
+const MOCK_PATCHES = [
+  {
+    file: 'api/routes.py',
+    before: ['    query = "SELECT * FROM users WHERE id = " + user_id', '    cursor.execute(query)'],
+    after:  ['    query = "SELECT * FROM users WHERE id = %s"', '    cursor.execute(query, (user_id,))  # Parameterized ✓'],
+    agent: 'Security Agent',
+  },
+  {
+    file: 'models/user.py',
+    before: ['    users = User.objects.filter(org_id=org_id)', '    for u in users:', '        print(u.profile.bio)'],
+    after:  ['    users = User.objects.filter(org_id=org_id).prefetch_related("profile") # N+1 fixed ✓', '    for u in users:', '        print(u.profile.bio)'],
+    agent: 'Performance Agent',
+  },
+];
+
+// ── STREAM LOG ──
+function streamLog(msg, type='') {
+  const logContainers = ['stream-log', 'workflow-log'];
+  logContainers.forEach(id => {
+    const container = document.getElementById(id);
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'log-line' + (type ? ' '+type : '');
+    el.textContent = '▸ ' + msg;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+  });
+}
+
+// ── ANALYSIS ──
+function startAnalysis() {
+  const url = document.getElementById('repo-url').value.trim();
+  if (!url && !document.getElementById('file-upload').files.length) {
+    document.getElementById('repo-url').focus();
+    document.getElementById('repo-url').style.borderColor = 'var(--red)';
+    document.getElementById('repo-url').style.boxShadow = '0 0 0 3px rgba(248,113,113,0.15)';
+    setTimeout(()=>{ document.getElementById('repo-url').style.borderColor=''; document.getElementById('repo-url').style.boxShadow=''; }, 2000);
+    return;
+  }
+
+  // Show scanning overlay
+  const overlay = document.getElementById('scanning-overlay');
+  overlay.classList.add('show');
+  document.getElementById('status-text').textContent = 'Running agents...';
+
+  const phases = [
+    [15, 'Cloning repository...'],
+    [40, 'Dispatching agents...'],
+    [70, 'Analyzing in parallel...'],
+    [100,'Review complete!'],
+  ];
+
+  let pi = 0;
+  const progress = document.getElementById('scan-progress-fill');
+  const scanText = document.getElementById('scan-status-text');
+  const totalDuration = 3500; // 3.5 seconds total
+  const intervalTime = totalDuration / phases.length;
+
+  const timer = setInterval(()=>{
+    if (pi >= phases.length) { clearInterval(timer); return; }
+    const [w, txt] = phases[pi++];
+    progress.style.width = w + '%';
+    scanText.textContent = txt;
+    if (w === 100) {
+      setTimeout(()=>{
+        overlay.classList.remove('show');
+        switchView('dashboard');
+        document.getElementById('nav-dashboard').classList.add('active');
+        document.getElementById('nav-input').classList.remove('active');
+        runAgentSimulation();
+      }, 400);
+    }
+  }, intervalTime);
+}
+
+// ── AGENT SIMULATION ──
+function runAgentSimulation() {
+  renderAgentCards('pending');
+  renderAgentMatrix('pending');
+  streamLog('Workflow initiated', 'info');
+
+  state.issues = [];
+  document.getElementById('issues-list').innerHTML = '';
+  document.getElementById('patches-list').innerHTML = '';
+  setStat(0,0,0,0);
+
+  let delay = 0;
+  AGENTS.forEach((agent, idx) => {
+    setTimeout(()=>{
+      setAgentState(agent.id, 'running');
+      streamLog(`${agent.name}: analyzing...`, 'info');
+      const d = 1200 + Math.random() * 800;
+      setTimeout(()=>{
+        setAgentState(agent.id, 'done');
+        streamLog(`${agent.name}: complete ✓`, 'ok');
+        const myIssues = MOCK_ISSUES.filter(i => i.agent === agent.id);
+        myIssues.forEach((issue, ii) => {
+          setTimeout(()=>addIssue(issue), ii * 200);
+        });
+        if (idx === AGENTS.length - 1) {
+          setTimeout(finalize, 800);
+        }
+      }, d);
+    }, delay);
+    delay += 700;
+  });
+}
+
+function setAgentState(agentId, state) {
+  const card = document.getElementById('ac-' + agentId);
+  const status = document.getElementById('as-' + agentId);
+  const bar = document.getElementById('ab-' + agentId);
+  const mx = document.getElementById('mx-' + agentId);
+  if (!card) return;
+  card.className = 'agent-card ' + state;
+  if (state === 'running') {
+    status.className = 'agent-status running';
+    status.innerHTML = '<div class="dots"><span></span><span></span><span></span></div> Analyzing...';
+    bar.style.width = '60%';
+    if (mx) { mx.style.borderColor='rgba(56,189,248,0.3)'; mx.querySelector('.mx-status').textContent='RUNNING'; mx.querySelector('.mx-status').style.color='var(--accent)'; }
+  } else if (state === 'done') {
+    status.className = 'agent-status done';
+    status.innerHTML = '<i class="fa-solid fa-check"></i> Complete';
+    bar.style.width = '100%';
+    if (mx) { mx.style.borderColor='rgba(52,211,153,0.3)'; mx.querySelector('.mx-status').textContent='DONE'; mx.querySelector('.mx-status').style.color='var(--green)'; }
+  }
+}
+
+function renderAgentCards(initState) {
+  const list = document.getElementById('agent-list');
+  list.innerHTML = '';
+  AGENTS.forEach(a => {
+    list.innerHTML += `
+    <div class="agent-card" id="ac-${a.id}">
+      <div class="agent-name">
+        <div class="agent-icon" style="background:${a.bg};color:${a.color}"><i class="fa-solid ${a.icon}"></i></div>
+        ${a.name}
+      </div>
+      <div class="agent-status" id="as-${a.id}">
+        <i class="fa-solid fa-clock" style="font-size:10px"></i> Queued
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="ab-${a.id}" style="width:0%;background:linear-gradient(90deg,${a.color},${a.bg})"></div></div>
+    </div>`;
+  });
+}
+
+function renderAgentMatrix(initState) {
+  const mx = document.getElementById('agent-matrix');
+  mx.innerHTML = '';
+  AGENTS.forEach(a => {
+    mx.innerHTML += `
+    <div id="mx-${a.id}" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;transition:all 0.3s;display:flex;align-items:center;gap:10px;">
+      <div style="width:28px;height:28px;border-radius:6px;background:${a.bg};color:${a.color};display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">
+        <i class="fa-solid ${a.icon}"></i>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text);">${a.name}</div>
+        <div class="mx-status" style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;">QUEUED</div>
+      </div>
+    </div>`;
+  });
+}
+
+function addIssue(issue) {
+  state.issues.push(issue);
+  const h = state.issues.filter(i=>i.severity==='high').length;
+  const m = state.issues.filter(i=>i.severity==='medium').length;
+  const l = state.issues.filter(i=>i.severity==='low').length;
+  setStat(state.issues.length, h, m, l);
+
+  streamLog(`[${issue.severity.toUpperCase()}] ${issue.type} in ${issue.file}:${issue.line}`, issue.severity==='high'?'err':issue.severity==='medium'?'warn':'');
+
+  const el = document.createElement('div');
+  el.className = `issue-card ${issue.severity}`;
+  el.style.animationDelay = '0s';
+  el.innerHTML = `
+    <div class="issue-top">
+      <span class="issue-badge badge-${issue.severity}">${issue.severity.toUpperCase()}</span>
+      <span class="issue-badge badge-type">${issue.type}</span>
+      <span class="issue-title">${issue.type}</span>
+    </div>
+    <div class="issue-file" style="margin-bottom:8px;"><i class="fa-solid fa-file-code" style="margin-right:6px;color:var(--accent);font-size:10px;"></i>${issue.file} <span style="color:var(--accent2)">:${issue.line}</span> <span style="margin-left:8px;font-size:9px;color:var(--muted)">via ${issue.agent} agent</span></div>
+    <div class="issue-desc">${issue.desc}</div>`;
+  el.setAttribute('data-sev', issue.severity);
+
+  document.getElementById('issues-list').appendChild(el);
+  applyFilter();
+}
+
+function setStat(total, high, med, low) {
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-high').textContent  = high;
+  document.getElementById('stat-med').textContent   = med;
+  document.getElementById('stat-low').textContent   = low;
+  document.getElementById('issue-count-badge').textContent = total;
+  document.getElementById('bar-total').style.width = Math.min(total*5,100)+'%';
+  document.getElementById('bar-high').style.width  = Math.min(high*12,100)+'%';
+  document.getElementById('bar-med').style.width   = Math.min(med*12,100)+'%';
+  document.getElementById('bar-low').style.width   = Math.min(low*12,100)+'%';
+  document.getElementById('fc-high').textContent = high;
+  document.getElementById('fc-med').textContent  = med;
+  document.getElementById('fc-low').textContent  = low;
+}
+
+function applyFilter() {
+  const f = state.filter;
+  document.querySelectorAll('#issues-list .issue-card').forEach(card => {
+    card.style.display = (f==='all' || card.getAttribute('data-sev')===f) ? 'block':'none';
+  });
+}
+
+function filterIssues(f) {
+  state.filter = f;
+  document.querySelectorAll('[id^="filter-"]').forEach(b=>b.classList.remove('active'));
+  document.getElementById('filter-'+f).classList.add('active');
+  applyFilter();
+}
+
+function finalize() {
+  document.getElementById('status-text').textContent = 'Analysis complete';
+
+  // Render summary
+  const h = state.issues.filter(i=>i.severity==='high').length;
+  const m = state.issues.filter(i=>i.severity==='medium').length;
+  const l = state.issues.filter(i=>i.severity==='low').length;
+  document.getElementById('summary-text').innerHTML =
+    `Found <span style="color:var(--red);font-weight:700">${h} critical</span> and <span style="color:var(--yellow);font-weight:700">${m} medium</span> issues across ${state.issues.length} findings. ` +
+    `Primary concerns include SQL injection vulnerabilities, exposed credentials, and N+1 database query patterns. ` +
+    `Security posture is <span style="color:var(--red)">HIGH RISK</span> — immediate remediation recommended for all HIGH severity items. ` +
+    `<span style="color:var(--green)">${MOCK_PATCHES.length} auto-patches</span> generated and ready to apply.`;
+
+  // Render code
+  renderCodeViewer();
+
+  // Render patches
+  renderPatches();
+
+  streamLog('All agents complete. Review ready.', 'ok');
+}
+
+// ── CODE VIEWER ──
+function renderCodeViewer() {
+  const tabs = document.getElementById('code-file-tabs');
+  const files = [...new Set(MOCK_CODE.filter(l=>l.hl).map(l=>'api/routes.py'))];
+  tabs.innerHTML = `<div class="code-file-tab active">api/routes.py</div><div class="code-file-tab">models/user.py</div>`;
+
+  const viewer = document.getElementById('code-viewer');
+  viewer.innerHTML = `
+    <div class="code-header">
+      <div class="code-dot" style="background:#ff5f57;"></div>
+      <div class="code-dot" style="background:#febc2e;"></div>
+      <div class="code-dot" style="background:#28c840;"></div>
+      <span class="code-filename">api/routes.py</span>
+      <span style="margin-left:auto;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted)">Python · 247 lines</span>
+    </div>
+    <div class="code-body">
+      ${MOCK_CODE.map(l => {
+        let html = `<div class="code-line${l.hl==='high'?' highlighted':l.hl==='warn'?' highlighted-warn':''}">
+          <div class="line-num">${l.ln}</div>
+          <div class="line-code">${l.code}</div>
+        </div>`;
+        if (l.comment) {
+          html += `<div class="inline-comment${l.hl==='warn'?' warn':''}">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:10px;"></i>
+            ${l.comment}
+          </div>`;
+        }
+        return html;
+      }).join('')}
+    </div>`;
+}
+
+// ── PATCHES ──
+function renderPatches() {
+  const list = document.getElementById('patches-list');
+  list.innerHTML = '';
+  MOCK_PATCHES.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'patch-card';
+    el.style.animationDelay = (i*0.15)+'s';
+    el.innerHTML = `
+      <div class="patch-header">
+        <i class="fa-solid fa-code-branch" style="color:var(--accent);"></i>
+        ${p.file}
+        <span style="margin-left:auto;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);color:var(--green);font-size:9px;padding:2px 8px;border-radius:4px;">AI PATCH · ${p.agent}</span>
+      </div>
+      ${p.before.map(l=>`<div class="diff-line diff-rem">- ${l}</div>`).join('')}
+      ${p.after.map(l=>`<div class="diff-line diff-add">+ ${l}</div>`).join('')}`;
+    list.appendChild(el);
+  });
+}
+</script>
+</body>
+</html>

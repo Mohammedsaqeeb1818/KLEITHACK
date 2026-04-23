@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NeuralReview — AI Code Review Orchestrator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+  --bg: #050914;
+  --panel: rgba(8,14,30,0.92);
+  --border: rgba(99,179,237,0.12);
+  --border-glow: rgba(99,179,237,0.35);
+  --accent: #38bdf8;
+  --accent2: #818cf8;
+  --accent3: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --green: #34d399;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --card: rgba(15,23,42,0.85);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* ── ANIMATED BG ── */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+.bg-orb {
+  position: fixed; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0;
+}
+.orb1 { width: 700px; height: 700px; background: radial-gradient(circle, rgba(56,189,248,0.09), transparent 70%); top: -250px; left: -150px; animation: drift1 20s ease-in-out infinite alternate; }
+.orb2 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(129,140,248,0.08), transparent 70%); bottom: -200px; right: -150px; animation: drift2 18s ease-in-out infinite alternate; }
+.orb3 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(52,211,153,0.06), transparent 70%); top: 45%; left: 45%; animation: drift3 15s ease-in-out infinite alternate; }
+
+@keyframes drift1 { from{transform:translate(0,0)} to{transform:translate(60px,40px)} }
+@keyframes drift2 { from{transform:translate(0,0)} to{transform:translate(-40px,-60px)} }
+@keyframes drift3 { from{transform:translate(0,0)} to{transform:translate(30px,-30px)} }
+
+/* ── MAIN CONTAINER ── */
+.landing-wrap {
+  position: relative; z-index: 10;
+  width: 100%; max-width: 1380px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 36px 56px;
+  gap: 0;
+}
+
+/* ── TOP BAR ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  flex-shrink: 0;
+}
+
+/* ── CORTANA LOGO ── */
+.cortana-logo {
+  width: 58px; height: 58px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; cursor: pointer; flex-shrink: 0;
+}
+.cortana-ring {
+  position: absolute; border-radius: 50%; border-style: solid;
+  animation: cortana-spin linear infinite;
+}
+.cr1 { width: 52px; height: 52px; border-width: 2px; border-color: rgba(56,189,248,0.85) transparent transparent transparent; animation-duration: 2.8s; }
+.cr2 { width: 40px; height: 40px; border-width: 1.5px; border-color: transparent rgba(129,140,248,0.75) transparent rgba(129,140,248,0.35); animation-duration: 2.1s; animation-direction: reverse; }
+.cr3 { width: 28px; height: 28px; border-width: 1.5px; border-color: transparent transparent rgba(52,211,153,0.85) transparent; animation-duration: 1.7s; }
+.core-dot {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, var(--accent) 60%, transparent 100%);
+  box-shadow: 0 0 14px var(--accent), 0 0 28px rgba(56,189,248,0.45);
+  animation: pulse-core 2.5s ease-in-out infinite;
+  position: relative; z-index: 5;
+}
+@keyframes cortana-spin { to { transform: rotate(360deg); } }
+@keyframes pulse-core {
+  0%,100% { transform: scale(1); box-shadow: 0 0 14px var(--accent), 0 0 28px rgba(56,189,248,0.4); }
+  50% { transform: scale(1.35); box-shadow: 0 0 22px var(--accent), 0 0 44px rgba(56,189,248,0.65); }
+}
+
+.brand-block { display: flex; align-items: center; gap: 18px; }
+.brand-name {
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--text), var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.brand-sub {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  color: var(--accent3); border: 1px solid rgba(52,211,153,0.3);
+  padding: 3px 8px; border-radius: 3px; letter-spacing: 2px;
+  animation: tag-blink 3s ease-in-out infinite;
+}
+@keyframes tag-blink { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+/* ── PIPELINE INDICATOR ── */
+.pipeline-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 18px; border-radius: 12px;
+  background: rgba(56,189,248,0.04);
+  border: 1px solid var(--border);
+}
+.pipe-label {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  color: var(--accent3); letter-spacing: 2px; margin-right: 8px;
+}
+.pipe-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); animation: pipe-pulse 2s ease-in-out infinite;
+}
+.pipe-dot:nth-child(2n) { background: var(--accent2); animation-delay: 0.3s; }
+.pipe-dot:nth-child(3n) { background: var(--accent3); animation-delay: 0.6s; }
+.pipe-dot:nth-child(4) { animation-delay: 0.9s; }
+.pipe-dot:nth-child(5) { animation-delay: 1.2s; }
+.pipe-dot:nth-child(6) { animation-delay: 1.5s; }
+.pipe-dot:nth-child(7) { animation-delay: 1.8s; }
+.pipe-dot:nth-child(8) { animation-delay: 2.1s; }
+.pipe-sep { width: 10px; height: 1px; background: rgba(56,189,248,0.2); }
+@keyframes pipe-pulse { 0%,100%{opacity:0.25;transform:scale(0.7)} 50%{opacity:1;transform:scale(1.2)} }
+
+.team-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 20px;
+  background: rgba(129,140,248,0.08);
+  border: 1px solid rgba(129,140,248,0.25);
+  color: var(--accent2);
+  font-family: 'Space Mono', monospace; font-size: 10px;
+  letter-spacing: 1px;
+}
+
+/* ── HERO TEXT ── */
+.hero-section { flex-shrink: 0; margin-bottom: 22px; }
+.hero-title {
+  font-family: 'Syne', sans-serif; font-weight: 800;
+  font-size: clamp(1.9rem, 3.2vw, 3rem);
+  line-height: 1.1; letter-spacing: -1.5px;
+  margin-bottom: 10px;
+}
+.hero-title .gradient-text {
+  background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: var(--muted); line-height: 1.7; max-width: 700px;
+}
+.hero-sub .accent { color: var(--accent); }
+
+/* ── FEATURE CARDS ── */
+.cards-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-bottom: 22px; flex-shrink: 0;
+}
+.feat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative; overflow: hidden;
+  transition: all 0.35s ease;
+  display: flex; flex-direction: column;
+}
+.feat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0; transition: opacity 0.35s;
+}
+.feat-card:hover { border-color: var(--border-glow); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(56,189,248,0.08); }
+.feat-card:hover::before { opacity: 1; }
+
+.card-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px; font-size: 15px;
+}
+.card-title {
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+  color: var(--text); margin-bottom: 8px;
+}
+.card-body {
+  font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+  color: var(--muted); line-height: 1.7; flex: 1;
+}
+.card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+.tag {
+  font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.5px;
+  padding: 2px 8px; border-radius: 4px; font-weight: 700;
+}
+
+/* ── BOTTOM ROW ── */
+.bottom-row {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+/* ── STATS ── */
+.stats-row { display: flex; align-items: center; gap: 28px; }
+.stat-item { text-align: center; }
+.stat-val {
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px;
+  background: linear-gradient(135deg, var(--text), var(--accent));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  line-height: 1;
+}
+.stat-label {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  color: var(--muted); margin-top: 4px; letter-spacing: 1px;
+}
+.stat-sep { width: 1px; height: 36px; background: var(--border); }
+
+/* ── TECH STACK ── */
+.tech-stack { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.tech-label {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  color: var(--muted); letter-spacing: 2px; text-transform: uppercase;
+}
+.tech-badges { display: flex; gap: 7px; }
+.tech-badge {
+  font-family: 'Space Mono', monospace; font-size: 9px; font-weight: 700;
+  padding: 4px 10px; border-radius: 6px; letter-spacing: 0.5px;
+}
+
+/* ── CTA BUTTON ── */
+.cta-block { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.btn-live {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 36px; border-radius: 50px;
+  background: linear-gradient(135deg, rgba(56,189,248,0.15), rgba(129,140,248,0.15));
+  border: 1px solid rgba(56,189,248,0.5);
+  color: var(--text);
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px;
+  letter-spacing: 1px; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: all 0.35s ease;
+  text-decoration: none;
+  box-shadow: 0 0 30px rgba(56,189,248,0.12);
+}
+.btn-live::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(129,140,248,0.2));
+  opacity: 0; transition: opacity 0.3s;
+}
+.btn-live:hover::before { opacity: 1; }
+.btn-live:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 50px rgba(56,189,248,0.3), 0 8px 30px rgba(56,189,248,0.15);
+  transform: translateY(-2px) scale(1.02);
+  color: #fff;
+}
+.btn-live:active { transform: scale(0.98); }
+.btn-live .mini-logo { position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+.btn-live .mini-cr { position: absolute; border-radius: 50%; border-style: solid; animation: cortana-spin linear infinite; }
+.btn-live .mini-cr1 { width: 26px; height: 26px; border-width: 1.5px; border-color: rgba(56,189,248,0.9) transparent transparent transparent; animation-duration: 2.8s; }
+.btn-live .mini-cr2 { width: 18px; height: 18px; border-width: 1.5px; border-color: transparent rgba(129,140,248,0.8) transparent rgba(129,140,248,0.3); animation-duration: 2.1s; animation-direction: reverse; }
+.btn-live .mini-dot { width: 6px; height: 6px; border-radius: 50%; background: radial-gradient(circle, #fff, var(--accent)); box-shadow: 0 0 8px var(--accent); position: relative; z-index: 5; }
+
+.btn-hint {
+  font-family: 'Space Mono', monospace; font-size: 9px;
+  color: var(--muted); letter-spacing: 1px;
+}
+
+/* ── STAGGER ANIMATIONS ── */
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.anim { opacity: 0; animation: fadeUp 0.55s ease forwards; }
+.d1 { animation-delay: 0.05s; }
+.d2 { animation-delay: 0.18s; }
+.d3 { animation-delay: 0.32s; }
+.d4 { animation-delay: 0.50s; }
+.d5 { animation-delay: 0.65s; }
+.d6 { animation-delay: 0.80s; }
+
+/* ── SCAN LINE across grid ── */
+.scan-stripe {
+  position: fixed; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56,189,248,0.25), rgba(129,140,248,0.2), transparent);
+  box-shadow: 0 0 30px rgba(56,189,248,0.2);
+  animation: scan-stripe 8s ease-in-out infinite;
+  z-index: 1; pointer-events: none;
+}
+@keyframes scan-stripe {
+  0%{ top: 0; opacity: 0; } 5%{ opacity: 1; }
+  95%{ opacity: 1; } 100%{ top: 100%; opacity: 0; }
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.15); border-radius: 4px; }
+
+/* ── LIGHT MODE ── */
+body.light-mode {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --border: #e2e8f0;
+  --border-glow: #bae6fd;
+  --accent: #0ea5e9;
+  --accent2: #6366f1;
+  --accent3: #10b981;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --green: #10b981;
+  --text: #0f172a;
+  --muted: #64748b;
+  --card: #ffffff;
+}
+body.light-mode .bg-grid {
+  background-image:
+    linear-gradient(rgba(14,165,233,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14,165,233,0.04) 1px, transparent 1px);
+}
+body.light-mode .bg-orb.orb1 { background: radial-gradient(circle, rgba(14,165,233,0.08), transparent 70%); }
+body.light-mode .bg-orb.orb2 { background: radial-gradient(circle, rgba(99,102,241,0.06), transparent 70%); }
+body.light-mode .bg-orb.orb3 { background: radial-gradient(circle, rgba(16,185,129,0.05), transparent 70%); }
+body.light-mode .scan-stripe {
+  background: linear-gradient(90deg, transparent, rgba(14,165,233,0.15), rgba(99,102,241,0.1), transparent);
+  box-shadow: 0 0 20px rgba(14,165,233,0.1);
+}
+body.light-mode .cortana-ring { border-color: rgba(14,165,233,0.7) transparent transparent transparent; }
+body.light-mode .cortana-ring.cr2 { border-color: transparent rgba(99,102,241,0.6) transparent rgba(99,102,241,0.3); }
+body.light-mode .cortana-ring.cr3 { border-color: transparent transparent rgba(16,185,129,0.7) transparent; }
+body.light-mode .core-dot { background: radial-gradient(circle, #ffffff 0%, var(--accent) 60%, transparent 100%); box-shadow: 0 0 14px var(--accent), 0 0 28px rgba(14,165,233,0.3); }
+body.light-mode .brand-name { background: none; -webkit-background-clip: unset; -webkit-text-fill-color: #0f172a; color: #0f172a; }
+body.light-mode .brand-sub { color: var(--accent3); border-color: rgba(16,185,129,0.25); }
+body.light-mode .hero-title { color: #0f172a; }
+body.light-mode .hero-title .gradient-text { background: linear-gradient(90deg, #0ea5e9, #6366f1, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+body.light-mode .hero-sub { color: #475569; }
+body.light-mode .hero-sub .accent { color: #0ea5e9; }
+body.light-mode .top-bar { background: transparent; }
+body.light-mode .pipeline-row { background: #f1f5f9; border-color: #e2e8f0; }
+body.light-mode .pipe-label { color: #10b981; }
+body.light-mode .pipe-dot { background: #0ea5e9; }
+body.light-mode .pipe-dot:nth-child(2n) { background: #6366f1; }
+body.light-mode .pipe-dot:nth-child(3n) { background: #10b981; }
+body.light-mode .pipe-sep { background: #cbd5e1; }
+body.light-mode .team-badge { background: #eef2ff; border-color: #c7d2fe; color: #4f46e5; }
+body.light-mode .feat-card { background: #ffffff; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02); }
+body.light-mode .feat-card:hover { border-color: #bae6fd; box-shadow: 0 4px 20px rgba(14,165,233,0.08); transform: translateY(-3px); }
+body.light-mode .feat-card:hover::before { opacity: 1; }
+body.light-mode .card-title { color: #0f172a; }
+body.light-mode .card-body { color: #475569; }
+body.light-mode .stat-val { background: none; -webkit-background-clip: unset; -webkit-text-fill-color: #0f172a; color: #0f172a; }
+body.light-mode .stat-label { color: #64748b; }
+body.light-mode .stat-sep { background: #e2e8f0; }
+body.light-mode .tech-label { color: #64748b; }
+body.light-mode .tech-badge { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; }
+body.light-mode .btn-live { background: linear-gradient(135deg, #0ea5e9, #6366f1); border: none; color: #ffffff; box-shadow: 0 4px 14px rgba(14,165,233,0.3); }
+body.light-mode .btn-live:hover { box-shadow: 0 8px 25px rgba(14,165,233,0.4); transform: translateY(-2px) scale(1.02); color: #ffffff; }
+body.light-mode .btn-live::before { display: none; }
+body.light-mode .btn-hint { color: #94a3b8; }
+body.light-mode .tag { background: #f1f5f9 !important; border: 1px solid #e2e8f0 !important; color: #475569 !important; }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+<div class="bg-orb orb3"></div>
+<div class="scan-stripe"></div>
+
+<div class="landing-wrap">
+
+  <!-- ── TOP BAR ── -->
+  <div class="top-bar anim d1">
+    <!-- Brand -->
+    <div class="brand-block">
+      <div class="cortana-logo">
+        <div class="cortana-ring cr1"></div>
+        <div class="cortana-ring cr2"></div>
+        <div class="cortana-ring cr3"></div>
+        <div class="core-dot"></div>
+      </div>
+      <div>
+        <div class="brand-name">NeuralReview</div>
+        <div class="brand-sub">AI CODE REVIEW ORCHESTRATOR</div>
+      </div>
+    </div>
+
+    <!-- Pipeline animation -->
+    <div class="pipeline-row">
+      <span class="pipe-label">7-AGENT PIPELINE</span>
+      <div class="pipe-dot"></div><div class="pipe-sep"></div>
+      <div class="pipe-dot"></div><div class="pipe-sep"></div>
+      <div class="pipe-dot"></div><div class="pipe-sep"></div>
+      <div class="pipe-dot"></div><div class="pipe-sep"></div>
+      <div class="pipe-dot"></div><div class="pipe-sep"></div>
+      <div class="pipe-dot"></div><div class="pipe-sep"></div>
+      <div class="pipe-dot"></div><div class="pipe-sep"></div>
+      <div class="pipe-dot"></div>
+      <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--accent3);margin-left:10px;letter-spacing:2px;">LIVE</span>
+    </div>
+
+    <!-- Team badge -->
+    <div class="team-badge">
+      <i class="fa-solid fa-trophy" style="font-size:11px;"></i>
+      <span>TEAM 4LOOPS</span>
+    </div>
+  </div>
+
+  <!-- ── HERO ── -->
+  <div class="hero-section anim d2">
+    <div class="hero-title">
+     Context Aware  Multi-Agent AI <br>
+      <span class="gradient-text">Code Review System</span>
+    </div>
+    <div class="hero-sub">
+      An <span class="accent">7-agent swarm</span> — Security · Architecture · CodeSmell · Dependency · Diff · Patch · Reviewer · —<br>
+      Orchestrating every stage of code analysis with transparent, explainable AI reasoning.
+    </div>
+  </div>
+
+  <!-- ── FEATURE CARDS ── -->
+  <div class="cards-grid anim d3">
+    
+
+    <!-- Card 1 -->
+    <div class="feat-card">
+      <div class="card-icon" style="background:rgba(129,140,248,0.12);">
+        <i class="fa-solid fa-network-wired" style="color:var(--accent2);"></i>
+      </div>
+      <div class="card-title">7-Agent Swarm</div>
+      <div class="card-body">Specialised CrewAI agents collaborate in a directed pipeline — each with its own role, personality and decision logic — running triage to execution autonomously.</div>
+      <div class="card-tags">
+        <span class="tag" style="background:rgba(129,140,248,0.1);border:1px solid rgba(129,140,248,0.25);color:var(--accent2);">CrewAI</span>
+        <span class="tag" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--accent3);">Multi-Agent</span>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="feat-card">
+      <div class="card-icon" style="background:rgba(56,189,248,0.1);">
+        <i class="fa-solid fa-brain" style="color:var(--accent);"></i>
+      </div>
+      <div class="card-title">Vulernablility Detection</div>
+      <div class="card-body">Security Breaches Loopholes is been Detected and is been taken care for perfect development</div>
+      <div class="card-tags">
+        <span class="tag" style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--accent);">Security</span>
+        
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="feat-card">
+      <div class="card-icon" style="background:rgba(251,191,36,0.1);">
+        <i class="fa-solid fa-lightbulb" style="color:var(--yellow);"></i>
+      </div>
+      <div class="card-title">Live XAI Reasoning</div>
+      <div class="card-body">Every agent's chain-of-thought streams live — colour-coded reasoning steps typed and errors are showed through which we can get the idea by why the errors are been occured,and why the steps are been given.</div>
+      <div class="card-tags">
+        <span class="tag" style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);color:var(--yellow);">Explainable AI</span>
+        <span class="tag" style="background:rgba(129,140,248,0.08);border:1px solid rgba(129,140,248,0.2);color:var(--accent2);">CoT</span>
+      </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="feat-card">
+      <div class="card-icon" style="background:rgba(248,113,113,0.1);">
+        <i class="fa-solid fa-bolt" style="color:var(--red);"></i>
+      </div>
+      <div class="card-title">Auto Generated Fixed Suggestions</div>
+      <div class="card-body">Smart suggestions that help you resolve issues faster </div>
+      <div class="card-tags">
+        <span class="tag" style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:var(--red);">CodeSmell</span>
+        
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── BOTTOM ROW ── -->
+  <div class="bottom-row">
+
+    <!-- Stats -->
+    <div class="stats-row anim d4">
+      <div class="stat-item">
+        <div class="stat-val">7</div>
+        <div class="stat-label">AI AGENTS</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <div class="stat-val" style="background:linear-gradient(135deg,var(--text),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">&lt;2s</div>
+        <div class="stat-label">TRIAGE SPEED</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <div class="stat-val" style="background:linear-gradient(135deg,var(--text),var(--yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">3</div>
+        <div class="stat-label">ADAPTIVE EVENTS</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <div class="stat-val" style="background:linear-gradient(135deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">∞</div>
+        <div class="stat-label">WORKFLOW HISTORY</div>
+      </div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="tech-stack anim d5">
+      <div class="tech-label">Built With</div>
+      <div class="tech-badges">
+        <span class="tech-badge" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);color:var(--accent3);">Flask</span>
+        <span class="tech-badge" style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.2);color:var(--accent);">MongoDB</span>
+        <span class="tech-badge" style="background:rgba(129,140,248,0.08);border:1px solid rgba(129,140,248,0.2);color:var(--accent2);">CrewAI</span>
+        <span class="tech-badge" style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);color:var(--yellow);">Mistral</span>
+        <span class="tech-badge" style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:var(--red);">Ollama</span>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-block anim d6">
+      <a class="btn-live" href="index.html">
+        <div class="mini-logo">
+          <div class="mini-cr mini-cr1"></div>
+          <div class="mini-cr mini-cr2"></div>
+          <div class="mini-dot"></div>
+        </div>
+        <span>LIVE AI DASHBOARD</span>
+        <i class="fa-solid fa-arrow-right" style="font-size:13px;opacity:0.8;"></i>
+      </a>
+      <div class="btn-hint">// ENTER THE ORCHESTRATOR</div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
+  }
+}
+window.addEventListener('load', initTheme);
+</script>
+
+</body>
+</html>
+
